@@ -1,0 +1,72 @@
+name: 构建 macOS 应用
+
+# 手动触发,或推到 main 分支时自动构建
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-14 # Apple Silicon(arm64)runner,自带 Xcode
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: 安装 .NET 8(编译 helper 用)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: 生成 macOS 工程脚手架
+        run: flutter create . --platforms=macos --project-name dst_mod_publisher
+
+      - name: 关闭 App Sandbox(否则无法拉起 helper / 连 Steam)
+        run: |
+          for f in macos/Runner/*.entitlements; do
+            /usr/libexec/PlistBuddy -c "Set :com.apple.security.app-sandbox false" "$f" || true
+            /usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "$f" || true
+          done
+
+      - name: 拉取 Flutter 依赖
+        run: flutter pub get
+
+      - name: 编译 Flutter macOS(release)
+        run: flutter build macos --release
+
+      - name: 编译 helper(.NET,文件夹式自包含)
+        run: |
+          dotnet publish helper/CpSteamHelper.csproj -c Release -r osx-arm64 \
+            --self-contained true -p:PublishSingleFile=false \
+            -p:IncludeNativeLibrariesForSelfExtract=false -o helper_out
+
+      - name: 修补 Steamworks.NET(arm64)+ 补齐 dylib / steam_appid.txt
+        run: |
+          python3 helper/patch_steamworks.py helper_out/Steamworks.NET.dll
+          cp helper/native/libsteam_api.dylib helper_out/ || true
+          printf "245850" > helper_out/steam_appid.txt
+          rm -f helper_out/*.pdb
+
+      - name: 组装 app + 签名 + 打包
+        run: |
+          APP="build/macos/Build/Products/Release/dst_mod_publisher.app"
+          rm -rf "$APP/Contents/MacOS/helper"
+          mkdir -p "$APP/Contents/MacOS/helper"
+          cp -R helper_out/. "$APP/Contents/MacOS/helper/"
+          chmod +x "$APP/Contents/MacOS/helper/CpSteamHelper"
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep "$APP" && echo "签名校验通过"
+          ditto -c -k --keepParent "$APP" dst_mod_publisher-macos.zip
+          echo "产物: dst_mod_publisher-macos.zip"
+
+      - name: 上传成品
+        uses: actions/upload-artifact@v4
+        with:
+          name: dst_mod_publisher-macos
+          path: dst_mod_publisher-macos.zip
+          if-no-files-found: error

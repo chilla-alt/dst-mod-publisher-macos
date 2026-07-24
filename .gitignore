@@ -1,0 +1,19 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+.metadata
+
+# macOS 工程脚手架由云端 flutter create 生成,不入库
+macos/
+
+# .NET helper 构建产物
+helper/bin/
+helper/obj/
+helper_out/
+
+# 杂项
+.DS_Store
+*.iml
