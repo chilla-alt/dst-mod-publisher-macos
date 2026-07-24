@@ -226,6 +226,7 @@ class SettingsPage extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 '作者 唤月(HuanYue)· 1713597367@qq.com\n'
+                'macOS 版由 Chilla 维护\n'
                 '开源(GPL-3.0)· 界面布局致敬 FlClash 的 Material You 设计,代码全部原创\n'
                 '非 Klei / Valve 官方软件 · Don\'t Starve 是 Klei Entertainment 商标,Steam 是 Valve 商标',
                 style: TextStyle(
@@ -268,6 +269,13 @@ class SettingsPage extends StatelessWidget {
                     ),
                     icon: const Icon(Icons.cloud_outlined, size: 16),
                     label: const Text('创意工坊'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => openSteamPage(
+                      'https://steamcommunity.com/id/Chilla_s_url/',
+                    ),
+                    icon: const Icon(Icons.person_outline, size: 16),
+                    label: const Text('macOS 版由 Chilla 维护'),
                   ),
                 ],
               ),
